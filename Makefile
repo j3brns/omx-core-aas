@@ -523,6 +523,16 @@ agent-push:
 	uv run python scripts/register_agent.py $(AGENT) --env $(ENV)
 	@echo "==> Agent $(AGENT) deployed successfully to $(ENV)"
 
+## agent-scaffold-omx: Create a new OMX-ready orchestration agent
+## Usage: make agent-scaffold-omx NAME=my-new-agent
+agent-scaffold-omx:
+	@test -n "$(NAME)" || (echo "ERROR: NAME required. Usage: make agent-scaffold-omx NAME=my-agent" && exit 1)
+	@mkdir -p agents/$(NAME)
+	@cp -r agents/template-omx/* agents/$(NAME)/
+	@sed -i "s/omx-agent/$(NAME)/g" agents/$(NAME)/pyproject.toml
+	@echo "==> Scaffolded OMX agent at agents/$(NAME)"
+	@echo "    cd agents/$(NAME) && uv sync"
+
 ## agentcore-dev: Start AgentCore local dev server inside an agent project
 ## Usage: make agentcore-dev AGENT=my-agent
 agentcore-dev:

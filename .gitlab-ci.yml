@@ -127,6 +127,7 @@ validate-pipeline-policy:
       PYTHONPATH=. uv run pytest
       tests/unit/test_issue_110_ci_policy.py
       tests/unit/test_check_gitlab_protected_environment.py
+      tests/unit/test_omx_policy.py
       -v --tb=short
   interruptible: true
 

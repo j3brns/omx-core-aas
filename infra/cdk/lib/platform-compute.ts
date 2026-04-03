@@ -172,11 +172,13 @@ export function createPlatformCompute(
       OPS_LOCKS_TABLE: storage.opsLocksTable.tableName,
       RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
       FALLBACK_REGION_PARAM: '/platform/config/fallback-region',
+      SESSIONS_TABLE_NAME: storage.sessionsTable.tableName,
     },
   });
   adminOpsFn.addLayers(appConfigExtension);
   storage.tenantsTable.grantReadWriteData(adminOpsFn);
   storage.opsLocksTable.grantReadData(adminOpsFn);
+  storage.sessionsTable.grantReadData(adminOpsFn);
   adminOpsFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['ssm:GetParameter', 'ssm:PutParameter'],
@@ -214,6 +216,7 @@ export function createPlatformCompute(
       INVOCATIONS_TABLE: storage.invocationsTable.tableName,
       JOBS_TABLE: storage.jobsTable.tableName,
       TENANTS_TABLE: storage.tenantsTable.tableName,
+      SESSIONS_TABLE_NAME: storage.sessionsTable.tableName,
       APPCONFIG_APPLICATION_ID: storage.appconfigApp.ref,
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
@@ -224,6 +227,7 @@ export function createPlatformCompute(
   storage.agentsTable.grantReadData(bridgeFn);
   storage.invocationsTable.grantReadWriteData(bridgeFn);
   storage.jobsTable.grantReadWriteData(bridgeFn);
+  storage.sessionsTable.grantReadWriteData(bridgeFn);
   bridgeFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],

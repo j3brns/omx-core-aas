@@ -13,37 +13,21 @@ import os
 from typing import Any
 
 from aws_lambda_powertools import Logger
-from bedrock_agentcore import BedrockAgentCoreApp, RequestContext
-from data_access import TenantScopedDynamoDB, TenantContext, TenantTier
+from bedrock_agentcore import RequestContext
+from platform_tools.agent_wrapper import OMXAgentApp
 from platform_tools.orchestration import DurableSession, KanbanTask
 
 logger = Logger(service="omx-orchestrator")
 
-# ASGI application
-invoke = BedrockAgentCoreApp()
+# Enhanced OMX application
+invoke = OMXAgentApp()
 
-@invoke.entrypoint
-def handler(payload: dict[str, Any], context: RequestContext) -> Any:
-    """Entrypoint for the OMX orchestrator."""
+@invoke.omx_entrypoint
+def handler(payload: dict[str, Any], context: RequestContext, session: DurableSession) -> Any:
+    """Entrypoint for the OMX orchestrator using the durable session wrapper."""
     session_id = context.session_id
-    tenant_id = str(payload.get("tenantId", "unknown"))
-    app_id = str(payload.get("appid", "platform"))
     prompt = str(payload.get("prompt", ""))
-
-    logger.append_keys(session_id=session_id, tenantid=tenant_id, appid=app_id)
-    logger.info("OMX Orchestrator invoked", extra={"prompt": prompt})
-
-    # 1. Initialize data access and durable session
-    # In a real agent, the context is derived from the Bedrock session
-    ctx = TenantContext(
-        tenant_id=tenant_id,
-        app_id=app_id,
-        tier=TenantTier.BASIC, # Should be resolved from tenant metadata
-        sub="omx-orchestrator"
-    )
-    db = TenantScopedDynamoDB(ctx)
-    session = DurableSession(db, session_id)
-    state = session.load(tenant_id, app_id)
+    state = session.state
 
     # 2. Process based on current state (Durable Execution)
     if not state.plan:

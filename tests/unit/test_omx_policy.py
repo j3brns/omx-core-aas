@@ -50,6 +50,6 @@ def test_claudemd_must_contain_omx_rules() -> None:
     claude_md = REPO_ROOT / "CLAUDE.md"
     content = claude_md.read_text(encoding="utf-8")
     assert "SDLC & Orchestration (OMX-Flow)" in content
+    assert "The OMX Rule" in content
     assert "The Kanban Rule" in content
     assert "The Durable Rule" in content
-    assert "The Async Rule" in content

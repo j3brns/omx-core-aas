@@ -179,7 +179,26 @@ flowchart LR
 
 *Platform operator path: the internal platform tenant uses the same control-plane surfaces as external tenants, with auditable operator identity and explicit target-tenant context.*
 
-## Quick Start
+## SDLC & Orchestration (OMX-Flow)
+
+This project uses **oh-my-codex (OMX)** as the primary development engine. All major refactoring and development phases are orchestrated via the specialized agent team defined in `AGENTS.md`.
+
+### The 4-Phase SDLC Loop:
+1.  **Extraction & Qualification (`$architect`)**: Map "The Good" and "The Debt".
+2.  **Specification & Planning (`$plan`)**: Decompose into Kanban tasks.
+3.  **Implementation & Execution (`$executor`)**: Code in isolated worktrees.
+4.  **Validation & Review (`$reviewer`)**: Enforce CI and architectural policies.
+
+## Active Blockers & Tech Debt
+
+The following critical issues are the primary focus of the current refactor:
+- **Raw DynamoDB Bypass**: Handlers bypassing `data-access-lib` (Refactoring in progress).
+- **Stateless Orchestration**: Agents lack durable state for multi-step tasks (Implementing OMX-Flow).
+- **Hardcoded Secrets**: Insecure Entra JWKS/audience values in infrastructure stacks.
+- **Documentation Fragmentation**: (Consolidated via this README).
+
+## Quick Start (Refactor Mode)
+
 
 **Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4+, Docker 24+, AWS CLI v2, Node 20 LTS, npm, GitLab access, and the required Entra group membership.
 
