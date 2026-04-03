@@ -1,0 +1,20 @@
+[project]
+name = "omx-agent"
+version = "0.1.0"
+description = "Template for OMX-Flow Durable Orchestration Agents"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.37.0",
+    "aws-lambda-powertools>=3.3.0",
+    "bedrock-agentcore>=0.1.4",
+    "data-access-lib",
+]
+
+[tool.agentcore]
+# MANDATORY: Orchestration agents must use async mode to survive 
+# multi-step task delegation.
+invocation_mode = "async"
+handler = "handler:invoke"
+
+[tool.uv.sources]
+data-access-lib = { path = "../../src/data-access-lib" }

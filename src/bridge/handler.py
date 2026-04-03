@@ -32,6 +32,7 @@ from botocore.exceptions import (
     ReadTimeoutError,
 )
 from data_access import (
+    ControlPlaneDynamoDB,
     TenantCapabilityClient,
     TenantScopedDynamoDB,
 )

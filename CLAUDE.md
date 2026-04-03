@@ -114,6 +114,29 @@ apply a fix, and re-run the smallest relevant check. Only stop for the explicit
 - Any change to KMS key policy
 - Any operation touching production data
 
+## SDLC & Orchestration (OMX-Flow)
+
+This project uses **oh-my-codex (OMX)** as the primary development engine and orchestration layer for managing the repository's lifecycle.
+
+### 1. The OMX Rule (Orchestration)
+All complex, multi-step development tasks MUST be orchestrated via the OMX team defined in `AGENTS.md`:
+- Use `omx team $architect` for scope extraction and technical debt qualification.
+- Use `omx team $plan` to decompose specifications into a concrete task list.
+- Use `omx team $executor` for implementation and scaffolding.
+- Use `omx team $reviewer` for validation and policy enforcement.
+- Every major phase MUST have a corresponding `.omx/state/` entry.
+
+### 2. The Kanban Rule (Task Management)
+Task execution is governed by a local Kanban board:
+- Use `scripts/codex_flow` for fine-grained task management.
+- Every OMX task MUST be reflected as a card in the `doing` lane before code is modified.
+- Maintain a detailed `note` file (`codex_flow note <card_id>`) logging technical decisions and agent thought processes.
+
+### 3. The Durable Rule (Agent Execution)
+Any agent built for the platform MUST itself be "OMX-Ready":
+- **Mandatory Primitive:** Use `platform_tools.orchestration.DurableSession` to persist Plan and Task state to `platform-sessions`.
+- **Mandatory Async:** Orchestration agents MUST be configured as `async` in `pyproject.toml`.
+
 ## Naming Conventions
 
 - AWS resources: platform-{resource}-{environment}

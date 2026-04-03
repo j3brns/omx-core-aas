@@ -139,7 +139,7 @@ def list_agents(
 
 
 def resolve_agent_record(
-    dynamodb: Any,
+    db: ControlPlaneDynamoDB,
     *,
     agents_table: str,
     agent_name: str,
@@ -147,19 +147,15 @@ def resolve_agent_record(
 ) -> AgentRecord | None:
     """Fetch a specific agent version or the latest promoted version."""
 
-    table = dynamodb.Table(agents_table)
-
     if agent_version:
         # Direct fetch for specific version
-        resp = table.get_item(Key={"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"})
-        item = resp.get("Item")
+        item = db.get_item(agents_table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"})
         if item and is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
             return _agent_record_from_item(item)
         return None
 
     # Query for all versions and pick latest promoted
-    response = table.query(KeyConditionExpression=Key("PK").eq(f"AGENT#{agent_name}"))
-    items = response.get("Items", [])
+    items = db.query_all(agents_table, key_condition=Key("PK").eq(f"AGENT#{agent_name}"))
 
     promoted_items = []
     for item in items:
@@ -206,7 +202,7 @@ def get_agent_detail(
     request_id: str,
     *,
     agents_table: str,
-    get_dynamodb: Any,
+    db: ControlPlaneDynamoDB,
     error_response: Any,
     tenant_context: TenantContext | None = None,
     capability_policy: Any = None,
@@ -215,11 +211,8 @@ def get_agent_detail(
     if not agent_name:
         return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
 
-    ddb = get_dynamodb()
-    table = ddb.Table(agents_table)
-    response = table.query(KeyConditionExpression=Key("PK").eq(f"AGENT#{agent_name}"))
-    items = response.get("Items", [])
-
+    items = db.query_all(agents_table, key_condition=Key("PK").eq(f"AGENT#{agent_name}"))
+    
     promoted_items = []
     for item in items:
         item_status = _coerce_optional_string(item.get("status"))

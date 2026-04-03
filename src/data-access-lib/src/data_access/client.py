@@ -434,6 +434,75 @@ class ControlPlaneDynamoDB(TenantScopedDynamoDB):
                 break
         return items
 
+    def query(
+        self,
+        table_name: str,
+        *,
+        key_condition: ConditionBase,
+        filter_expression: ConditionBase | None = None,
+        index_name: str | None = None,
+        limit: int | None = None,
+        scan_index_forward: bool = True,
+        exclusive_start_key: dict[str, Any] | None = None,
+        projection_expression: str | None = None,
+        expression_attribute_names: dict[str, str] | None = None,
+    ) -> PaginatedItems:
+        """Administrative query — allows the caller to supply the full KeyConditionExpression."""
+        table = self._dynamodb.Table(table_name)
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": key_condition,
+            "ScanIndexForward": scan_index_forward,
+        }
+        if filter_expression is not None:
+            kwargs["FilterExpression"] = filter_expression
+        if index_name is not None:
+            kwargs["IndexName"] = index_name
+        if limit is not None:
+            kwargs["Limit"] = limit
+        if exclusive_start_key is not None:
+            kwargs["ExclusiveStartKey"] = exclusive_start_key
+        if projection_expression is not None:
+            kwargs["ProjectionExpression"] = projection_expression
+        if expression_attribute_names is not None:
+            kwargs["ExpressionAttributeNames"] = expression_attribute_names
+
+        response = table.query(**kwargs)
+        return PaginatedItems(
+            items=response.get("Items", []),
+            last_evaluated_key=response.get("LastEvaluatedKey"),
+        )
+
+    def query_all(
+        self,
+        table_name: str,
+        *,
+        key_condition: ConditionBase,
+        filter_expression: ConditionBase | None = None,
+        index_name: str | None = None,
+        scan_index_forward: bool = True,
+        projection_expression: str | None = None,
+        expression_attribute_names: dict[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Administrative query all — handles pagination."""
+        items: list[dict[str, Any]] = []
+        exclusive_start_key = None
+        while True:
+            result = self.query(
+                table_name,
+                key_condition=key_condition,
+                filter_expression=filter_expression,
+                index_name=index_name,
+                scan_index_forward=scan_index_forward,
+                exclusive_start_key=exclusive_start_key,
+                projection_expression=projection_expression,
+                expression_attribute_names=expression_attribute_names,
+            )
+            items.extend(result.items)
+            exclusive_start_key = result.last_evaluated_key
+            if not exclusive_start_key:
+                break
+        return items
+
 
 # ---------------------------------------------------------------------------
 # TenantScopedS3

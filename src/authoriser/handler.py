@@ -20,6 +20,8 @@ import jwt
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.logging import correlation_paths
 from boto3.dynamodb.conditions import Attr, Key
+from data_access.client import ControlPlaneDynamoDB
+from data_access.models import TenantContext, TenantTier
 from jwt import PyJWKClient
 
 logger = Logger(service="authoriser")
@@ -97,16 +99,21 @@ def get_tenant_status(tenant_id: str) -> str | None:
     """Fetch tenant status from DynamoDB.
 
     The authoriser runs before a TenantContext exists, so it uses the
-    system-level DynamoDB client directly.
+    system-level ControlPlaneDynamoDB client.
     """
     if not TENANTS_TABLE:
         logger.warning("TENANTS_TABLE not set, assuming active (dev mode)")
         return "active"
 
     try:
-        table = get_dynamodb().Table(TENANTS_TABLE)
-        response = table.get_item(Key={"PK": f"TENANT#{tenant_id}", "SK": "METADATA"})
-        item = response.get("Item")
+        ctx = TenantContext(
+            tenant_id="system",
+            app_id="authoriser",
+            tier=TenantTier.PREMIUM,
+            sub="authoriser",
+        )
+        db = ControlPlaneDynamoDB(ctx, dynamodb_resource=get_dynamodb())
+        item = db.get_item(TENANTS_TABLE, {"PK": f"TENANT#{tenant_id}", "SK": "METADATA"})
         if item:
             status = item.get("status")
             return str(status) if status is not None else None
@@ -148,25 +155,32 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
 
     # 2. Resolve via DynamoDB GSI
     candidate_role_arns = _sigv4_caller_role_arns(caller_arn)
-    table = get_dynamodb().Table(TENANTS_TABLE)
+    ctx = TenantContext(
+        tenant_id="system",
+        app_id="authoriser",
+        tier=TenantTier.PREMIUM,
+        sub="authoriser",
+    )
+    db = ControlPlaneDynamoDB(ctx, dynamodb_resource=get_dynamodb())
     matches: dict[str, dict[str, str]] = {}
 
     try:
         for role_arn in candidate_role_arns:
             # O(1) GSI Query
-            response = table.query(
-                IndexName="gsi-execution-role-arn",
-                KeyConditionExpression=Key("executionRoleArn").eq(role_arn),
-                ProjectionExpression="PK, SK",
+            # Use data-access-lib ControlPlaneDynamoDB for administrative query
+            result = db.query(
+                TENANTS_TABLE,
+                index_name="gsi-execution-role-arn",
+                key_condition=Key("executionRoleArn").eq(role_arn),
+                projection_expression="PK, SK",
             )
 
-            for index_item in response.get("Items", []):
+            for index_item in result.items:
                 # Follow-up GetItem for full metadata (since GSI is KEYS_ONLY)
-                full_item_resp = table.get_item(
-                    Key={"PK": index_item["PK"], "SK": index_item["SK"]},
-                    ProjectionExpression="tenantId, tenant_id, appId, app_id, tier",
+                item = db.get_item(
+                    TENANTS_TABLE,
+                    {"PK": index_item["PK"], "SK": index_item["SK"]},
                 )
-                item = full_item_resp.get("Item")
                 if not item:
                     continue
 
@@ -175,11 +189,11 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
                 tier = _normalise_tier(str(item.get("tier") or "basic"))
 
                 if tenant_id:
-                    result = {"tenant_id": tenant_id, "app_id": app_id, "tier": tier}
-                    matches[tenant_id] = result
+                    result_data = {"tenant_id": tenant_id, "app_id": app_id, "tier": tier}
+                    matches[tenant_id] = result_data
                     # Update cache for this specific role ARN
                     _sigv4_binding_cache[role_arn] = (
-                        result,
+                        result_data,
                         now + _SIGV4_BINDING_CACHE_TTL_SECONDS,
                     )
 
