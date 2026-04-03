@@ -34,10 +34,14 @@ from aws_lambda_powertools.utilities.parameters import get_secret
 from jwt import PyJWKClient
 
 try:
-    from data_access import TenantCapabilityClient
+    from data_access import ControlPlaneDynamoDB, TenantCapabilityClient
+    from data_access.models import TenantContext, TenantTier
 except ImportError:
     # Fallback for environments where data-access-lib is not yet bundled
     TenantCapabilityClient = None
+    ControlPlaneDynamoDB = None
+    TenantContext = None
+    TenantTier = None
 
 logger = Logger(service="gateway-request-interceptor")
 tracer = Tracer()
@@ -52,6 +56,22 @@ _TIER_ORDER = {"basic": 0, "standard": 1, "premium": 2}
 _jwk_client: PyJWKClient | None = None
 _dynamodb_resource: Any | None = None
 _capability_client: Any | None = None
+_control_plane_db: Any | None = None
+
+
+def get_control_plane_db():
+    """Lazy initialization of ControlPlaneDynamoDB."""
+    global _control_plane_db
+    if _control_plane_db is None and ControlPlaneDynamoDB:
+        # Use a system context for the interceptor's administrative lookups
+        ctx = TenantContext(
+            tenant_id="system",
+            app_id="gateway-interceptor",
+            tier=TenantTier.PREMIUM,
+            sub="gateway",
+        )
+        _control_plane_db = ControlPlaneDynamoDB(ctx, dynamodb_resource=get_dynamodb())
+    return _control_plane_db
 
 
 def get_capability_client():
@@ -207,14 +227,23 @@ def _extract_minimum_tier(tool_record: dict[str, Any]) -> str:
 
 def get_tool_record(tool_name: str, tenant_id: str) -> dict[str, Any] | None:
     """Fetch tenant-specific tool first, then global."""
-    table = get_dynamodb().Table(TOOLS_TABLE)
+    db = get_control_plane_db()
     primary_key = {"PK": f"TOOL#{tool_name}"}
     candidate_sort_keys = [f"TENANT#{tenant_id}", "GLOBAL"]
-    for sort_key in candidate_sort_keys:
-        response = table.get_item(Key={**primary_key, "SK": sort_key}, ConsistentRead=True)
-        item = response.get("Item")
-        if item and bool(item.get("enabled", False)):
-            return dict(item)
+
+    if db:
+        for sort_key in candidate_sort_keys:
+            item = db.get_item(TOOLS_TABLE, {**primary_key, "SK": sort_key}, consistent_read=True)
+            if item and bool(item.get("enabled", False)):
+                return dict(item)
+    else:
+        # Fallback for environments where data-access-lib is not yet bundled
+        table = get_dynamodb().Table(TOOLS_TABLE)
+        for sort_key in candidate_sort_keys:
+            response = table.get_item(Key={**primary_key, "SK": sort_key}, ConsistentRead=True)
+            item = response.get("Item")
+            if item and bool(item.get("enabled", False)):
+                return dict(item)
     return None
 
 

@@ -43,6 +43,7 @@ export interface PlatformComputeResources {
   readonly requestInterceptorFn: lambda.Function;
   readonly responseInterceptorFn: lambda.Function;
   readonly billingFn: lambda.Function;
+  readonly diagnosticsFn: lambda.Function;
   readonly dlqs: Record<string, sqs.IQueue>;
 }
 
@@ -172,7 +173,7 @@ export function createPlatformCompute(
       OPS_LOCKS_TABLE: storage.opsLocksTable.tableName,
       RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
       FALLBACK_REGION_PARAM: '/platform/config/fallback-region',
-      SESSIONS_TABLE_NAME: storage.sessionsTable.tableName,
+      SESSIONS_TABLE: storage.sessionsTable.tableName,
     },
   });
   adminOpsFn.addLayers(appConfigExtension);
@@ -216,7 +217,7 @@ export function createPlatformCompute(
       INVOCATIONS_TABLE: storage.invocationsTable.tableName,
       JOBS_TABLE: storage.jobsTable.tableName,
       TENANTS_TABLE: storage.tenantsTable.tableName,
-      SESSIONS_TABLE_NAME: storage.sessionsTable.tableName,
+      SESSIONS_TABLE: storage.sessionsTable.tableName,
       APPCONFIG_APPLICATION_ID: storage.appconfigApp.ref,
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
@@ -575,6 +576,22 @@ export function createPlatformCompute(
     targets: [new targets.LambdaFunction(tenantMgmtFn)],
   });
 
+  const diagnosticsFn = createPythonLambda({
+    assetPath: path.join(__dirname, '../../../src/platform_tools'),
+    handler: 'diagnostics_handler.lambda_handler',
+    functionNameSuffix: 'platform-diagnostics',
+    timeout: cdk.Duration.seconds(30),
+    memorySize: 512,
+    environment: {
+      POWERTOOLS_SERVICE_NAME: 'platform-diagnostics-tool',
+      TENANTS_TABLE_NAME: storage.tenantsTable.tableName,
+      INVOCATIONS_TABLE_NAME: storage.invocationsTable.tableName,
+    },
+  });
+  diagnosticsFn.addLayers(appConfigExtension);
+  storage.tenantsTable.grantReadData(diagnosticsFn);
+  storage.invocationsTable.grantReadData(diagnosticsFn);
+
   return {
     tenantMgmtFn,
     webhookRegistryFn,
@@ -587,6 +604,7 @@ export function createPlatformCompute(
     requestInterceptorFn,
     responseInterceptorFn,
     billingFn,
+    diagnosticsFn,
     dlqs,
   };
 }

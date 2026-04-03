@@ -26,7 +26,10 @@ export function resolveEntraConfiguration(scope: Construct): EntraConfiguration 
     );
   }
 
-  const audience = optionalContext(scope, 'entraAudience') ?? 'platform-api';
+  const audience = optionalContext(scope, 'entraAudience');
+  if (!audience) {
+    throw new Error('entraAudience context is required for all environments');
+  }
   const issuer = optionalContext(scope, 'entraIssuer') ?? `https://login.microsoftonline.com/${tenantId}/v2.0`;
   const jwksUrl =
     optionalContext(scope, 'entraJwksUrl') ??

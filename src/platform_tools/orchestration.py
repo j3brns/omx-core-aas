@@ -1,7 +1,7 @@
 """
 platform_tools.orchestration — Durable Agent Team Orchestration (OMX-Flow).
 
-Provides primitives for managing multi-step, multi-agent workflows with 
+Provides primitives for managing multi-step, multi-agent workflows with
 durable state and Kanban-aligned task tracking.
 
 Components:
@@ -23,11 +23,11 @@ from typing import Any
 
 from aws_lambda_powertools import Logger
 from data_access.client import ControlPlaneDynamoDB, TenantScopedDynamoDB
-from data_access.models import TenantContext
 
 logger = Logger(service="orchestration-lib")
 
-SESSIONS_TABLE = os.environ.get("SESSIONS_TABLE_NAME", "platform-sessions")
+SESSIONS_TABLE = os.environ.get("SESSIONS_TABLE", "platform-sessions")
+
 
 @dataclass
 class KanbanTask:
@@ -45,6 +45,7 @@ class KanbanTask:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> KanbanTask:
         return cls(**data)
+
 
 @dataclass
 class OrchestrationState:
@@ -76,6 +77,7 @@ class OrchestrationState:
             updated_at=data.get("updated_at", datetime.now(UTC).isoformat()),
         )
 
+
 class DurableSession:
     """Manages the persistence of OrchestrationState in DynamoDB."""
 
@@ -92,18 +94,16 @@ class DurableSession:
     def load(self, tenant_id: str, app_id: str) -> OrchestrationState:
         """Load state from DynamoDB or create a new one."""
         pk, sk = self._get_pk_sk(tenant_id)
-        
+
         # Note: ControlPlaneDynamoDB or TenantScopedDynamoDB both support get_item
         # but the table name must be correct.
         item = self.db.get_item(SESSIONS_TABLE, {"PK": pk, "SK": sk})
-        
+
         if item and "state" in item:
             self._state = OrchestrationState.from_dict(json.loads(item["state"]))
         else:
             self._state = OrchestrationState(
-                session_id=self.session_id,
-                tenant_id=tenant_id,
-                app_id=app_id
+                session_id=self.session_id, tenant_id=tenant_id, app_id=app_id
             )
         return self._state
 
@@ -112,12 +112,11 @@ class DurableSession:
         if not self._state:
             raise RuntimeError("No state to save. Call load() first.")
 
-        current_version = self._state.version
         self._state.updated_at = datetime.now(UTC).isoformat()
         self._state.version += 1
-        
+
         pk, sk = self._get_pk_sk(self._state.tenant_id)
-        
+
         item = {
             "PK": pk,
             "SK": sk,
@@ -125,29 +124,32 @@ class DurableSession:
             "updatedAt": self._state.updated_at,
             "tenantId": self._state.tenant_id,
             "sessionId": self.session_id,
-            "version": self._state.version
+            "version": self._state.version,
         }
-        
+
         # Use put_item with a condition expression to enforce optimistic locking
         # Note: ControlPlaneDynamoDB and TenantScopedDynamoDB must support condition_expression
         try:
             self.db.put_item(
-                SESSIONS_TABLE, 
-                item, 
+                SESSIONS_TABLE,
+                item,
                 condition_expression="attribute_not_exists(PK) OR version < :v",
             )
             # Actual DynamoDB condition for version check would need expression_attribute_values
             # but our current put_item signature is simple. Refactoring to a safe update:
             self.db.put_item(SESSIONS_TABLE, item)
-        except Exception as exc:
+        except Exception:
             logger.exception("Failed to save orchestration state")
             raise
 
-        logger.info("Orchestration state saved", extra={
-            "session_id": self.session_id,
-            "tenant_id": self._state.tenant_id,
-            "version": self._state.version
-        })
+        logger.info(
+            "Orchestration state saved",
+            extra={
+                "session_id": self.session_id,
+                "tenant_id": self._state.tenant_id,
+                "version": self._state.version,
+            },
+        )
 
     @property
     def state(self) -> OrchestrationState:

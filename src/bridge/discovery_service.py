@@ -149,7 +149,9 @@ def resolve_agent_record(
 
     if agent_version:
         # Direct fetch for specific version
-        item = db.get_item(agents_table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"})
+        item = db.get_item(
+            agents_table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"}
+        )
         if item and is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
             return _agent_record_from_item(item)
         return None
@@ -212,7 +214,7 @@ def get_agent_detail(
         return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
 
     items = db.query_all(agents_table, key_condition=Key("PK").eq(f"AGENT#{agent_name}"))
-    
+
     promoted_items = []
     for item in items:
         item_status = _coerce_optional_string(item.get("status"))

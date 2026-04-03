@@ -264,7 +264,13 @@ validate-cdk-ts-push:
 
 ## validate-cdk-synth: CDK synth only
 validate-cdk-synth:
-	cd infra/cdk && npx --no-install cdk synth --context env=dev --context entraTenantId=00000000-0000-0000-0000-000000000000 --quiet > /dev/null
+	cd infra/cdk && npx --no-install cdk synth \
+		--context env=dev \
+		--context gitlabProjectPath=j3brns/omx-core-aas \
+		--context entraTenantId=00000000-0000-0000-0000-000000000000 \
+		--context entraAudience=platform-api \
+		--context cdkBootstrapQualifier=hnb659fds \
+		--quiet > /dev/null
 
 ## validate-cfn-guard: Run cfn-guard against synthesised templates
 validate-cfn-guard:

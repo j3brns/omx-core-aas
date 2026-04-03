@@ -129,6 +129,7 @@ export class PlatformStack extends cdk.Stack {
   public readonly requestInterceptorFn: lambda.Function;
   public readonly responseInterceptorFn: lambda.Function;
   public readonly billingFn: lambda.Function;
+  public readonly diagnosticsFn: lambda.Function;
 
   public readonly apiWebAcl: wafv2.CfnWebACL;
   public readonly spaDistribution: cloudfront.CfnDistribution;
@@ -206,6 +207,7 @@ export class PlatformStack extends cdk.Stack {
     this.requestInterceptorFn = compute.requestInterceptorFn;
     this.responseInterceptorFn = compute.responseInterceptorFn;
     this.billingFn = compute.billingFn;
+    this.diagnosticsFn = compute.diagnosticsFn;
     Object.assign(this.dlqs, compute.dlqs);
 
     const bridgeAlias = new lambda.Alias(this, 'BridgeLiveAlias', {

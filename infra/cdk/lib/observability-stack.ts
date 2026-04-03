@@ -26,6 +26,7 @@ export interface ObservabilityStackProps extends cdk.StackProps {
   readonly toolsTable: dynamodb.ITable;
   readonly opsLocksTable: dynamodb.ITable;
   readonly billingFn: lambda.IFunction;
+  readonly diagnosticsFn: lambda.IFunction;
   readonly dlqs: Record<string, sqs.IQueue>;
 }
 
@@ -389,6 +390,19 @@ export class ObservabilityStack extends cdk.Stack {
       alarmName: `${alarmNamePrefix}-FM-10-BillingLambdaFailure`,
       alarmDescription: 'Billing Lambda is failing (errors detected)',
       metric: props.billingFn.metricErrors({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new cloudwatch.Alarm(this, 'Fm12DiagnosticsLambdaFailureAlarm', {
+      alarmName: `${alarmNamePrefix}-FM-12-DiagnosticsLambdaFailure`,
+      alarmDescription: 'Diagnostics Lambda is failing (errors detected)',
+      metric: props.diagnosticsFn.metricErrors({
         period: cdk.Duration.minutes(5),
         statistic: 'Sum',
       }),

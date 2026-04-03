@@ -1,55 +1,42 @@
-# OMX Orchestration — Refactor Team
+# Assistant instructions pointer
 
-This file defines the **OMX-Flow** orchestration for refactoring the `tf-acore-aas` repository. It uses specialized agent roles and a durable state machine to ensure a clean extraction of scope and specifications.
+Pointer only.
 
-## The Team
+Read [CLAUDE.md](CLAUDE.md) for the authoritative rules for AI coding assistants.
+This file exists so tools that look for assistant instruction files can redirect to the source of truth.
 
-| Role | Responsibility | Agent Alias |
-|------|----------------|-------------|
-| **Architect** | Extracts scope, qualifies tech debt, and defines the target spec. | `$architect` |
-| **Planner** | Decomposes the spec into a concrete SDLC and task list. | `$plan` |
-| **Executor** | Implements scaffolding, rules, instructions, and CI. | `$executor` |
-| **Reviewer** | Validates implementation against the spec and architectural rules. | `$reviewer` |
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
 
-## Orchestration Flow
+Read [AGENTS.md](AGENTS.md) for the current generated GitNexus repo guidance.
+Keep this file as a stable pointer; do not duplicate or fork generated GitNexus context here.
 
-### 1. Extraction Phase (`$architect`)
-*   **Goal:** Cleanly extract "The Good" and qualify "The Debt".
-*   **Output:** `docs/REFACTOR_SPEC.md`
-*   **Rules:** 
-    *   MUST NOT propose changes yet.
-    *   MUST identify every instance of raw `boto3` DynamoDB access.
-    *   MUST document the 4-layer isolation model in detail.
+<!-- gitnexus:end -->
+After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
 
-### 2. SDLC Phase (`$plan`)
-*   **Goal:** Define the development process and orchestration rules.
-*   **Output:** `docs/REFACTOR_SDLC.md`
-*   **Rules:**
-    *   MUST integrate **Cline Kanban** (`scripts/codex_flow`) as the primary task engine.
-    *   MUST define the branching and worktree strategy.
+```bash
+npx gitnexus analyze
+```
 
-### 3. Implementation Phase (`$executor`)
-*   **Goal:** Scaffold the OMX-ready agent and CI rules.
-*   **Output:** `agents/template-omx/`, `.gitlab-ci.yml` updates.
-*   **Rules:**
-    *   MUST enforce the `DurableSession` pattern.
-    *   MUST ensure all agents are `async` by default.
+If the index previously included embeddings, preserve them by adding `--embeddings`:
 
-### 4. Validation Phase (`$reviewer`)
-*   **Goal:** Verify the refactor matches the spec.
-*   **Rules:**
-    *   MUST run `tests/unit/test_omx_policy.py`.
-    *   MUST verify `CLAUDE.md` updates.
+```bash
+npx gitnexus analyze --embeddings
+```
 
-## State Management
+To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
 
-Every orchestration session is tracked in `.omx/state/`.
-- **Plan:** `$plan --init`
-- **Status:** `$plan --status`
-- **Handover:** `$team --handoff <role>`
+> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
 
-## Command Reference
+## CLI
 
-- **Extract Scope:** `omx team $architect "Extract scope and debt from src/ and infra/"`
-- **Create SDLC:** `omx team $plan "Create SDLC and process for OMX-Flow"`
-- **Verify Policy:** `omx team $reviewer "Validate CI and CLAUDE.md against the new spec"`
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->

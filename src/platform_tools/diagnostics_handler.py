@@ -130,7 +130,7 @@ def get_tenant_status(db: ControlPlaneDynamoDB, tenant_id: str) -> dict[str, Any
     # but for a platform tool it's acceptable with a small limit.
     recent_invocations = db.query(
         INVOCATIONS_TABLE,
-        sk_condition=Key("SK").gt(f"TIME#{hour_ago}"),
+        key_condition=Key("PK").eq(f"TENANT#{tenant_id}") & Key("SK").gt(f"TIME#{hour_ago}"),
         limit=20,
         scan_index_forward=False,
     )
